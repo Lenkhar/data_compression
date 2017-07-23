@@ -1,0 +1,8 @@
+[package]
+name = "huffman"
+version = "0.1.0"
+authors = ["lcolbois"]
+
+[dependencies]
+binary_heap_compare = { git = "https://github.com/antigol/binary_heap_compare" }
+bit-vec = "0.4.4"
