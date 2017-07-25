@@ -33,20 +33,16 @@ fn append_bit_vec(mut a: BitVec, b: &BitVec) -> BitVec {
 
 
 fn serialize_bit_vec(x: &BitVec) -> Vec<u8> {
-    let len = x.len() as u64;
-    let raw_bytes: [u8; 8] = unsafe { std::mem::transmute(len) };
-    let mut output = raw_bytes.to_vec();
-    output.append(&mut x.to_bytes());
+    let modulo = (x.len() % 8) as u8;
+    let mut output = x.to_bytes();
+    output.push(if modulo == 0 { 0 } else { 8 - modulo });
     return output;
 }
 
 fn unserialize_bit_vec(x: &[u8]) -> BitVec {
-    let mut raw_bytes: [u8; 8] = [0; 8]; // [x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7]];
-    raw_bytes.copy_from_slice(&x[..8]);
-    let len: u64 = unsafe { std::mem::transmute(raw_bytes) };
-    let bit_vec_len = ((len + 7) / 8) as usize;
-    let mut bits = BitVec::from_bytes(&x[8..8 + bit_vec_len]);
-    bits.truncate(len as usize);
+    let mut bits = BitVec::from_bytes(&x[..x.len() - 1]);
+    let len = bits.len() - x[x.len() - 1] as usize;
+    bits.truncate(len);
     bits
 }
 
