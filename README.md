@@ -1,5 +1,5 @@
-# huffman
-Huffman compression
+# data_compression
+Data compression
 
 # Install
 

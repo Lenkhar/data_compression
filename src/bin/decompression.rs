@@ -1,5 +1,5 @@
 
-extern crate huffman;
+extern crate data_compression;
 use std::fs::File;
 use std::io::prelude::*;
 use std::env;
@@ -10,7 +10,7 @@ fn main() {
     let mut file = File::open(&file_name).unwrap();
     let mut contents = Vec::new();
     file.read_to_end(&mut contents).unwrap();
-    let output = huffman::decompression(contents).unwrap();
+    let output = data_compression::decompression(contents).unwrap();
 
     let mut file = File::create(file_name.split_at(file_name.len() - 3).0).unwrap();
     file.write_all(&output).unwrap();

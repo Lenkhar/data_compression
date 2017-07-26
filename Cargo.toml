@@ -1,5 +1,5 @@
 [package]
-name = "huffman"
+name = "data_compression"
 version = "0.1.0"
 authors = ["lcolbois"]
 
