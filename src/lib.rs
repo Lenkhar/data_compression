@@ -31,8 +31,8 @@ pub fn compression(content: &Vec<u8>) -> Vec<u8> {
     let mut output = BitVec::new();
     let pointer_code = pointer_tree.encode_tree();
     let character_code = character_tree.encode_tree();
-    println!("Pointer tree size {}", pointer_code.len());
-    println!("Character tree size {}", character_code.len());
+    println!("Pointer tree size {} ({} pointers)", pointer_code.len(), pointer_statistic.len());
+    println!("Character tree size {} ({} characters)", character_code.len(), character_statistic.len());
     output = append_bit_vec(output, &pointer_code);
     output = append_bit_vec(output, &character_code);
 
