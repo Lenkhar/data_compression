@@ -4,7 +4,7 @@ extern crate bit_vec;
 use binary_heap_compare::BinaryHeapCompare;
 use bit_vec::{BitVec,Iter};
 
-
+#[derive(Debug)]
 enum Node {
     Leaf(u8),
     Branch(Box<Node>, Box<Node>),
@@ -108,6 +108,7 @@ pub fn compression(content: Vec<u8>) -> Vec<u8> {
 
     let mut output = encode_tree(&heap.peek().unwrap().1);
 
+
     let mut dictionnary = vec![BitVec::new();256];
     let root_word = BitVec::new();
 
@@ -118,6 +119,7 @@ pub fn compression(content: Vec<u8>) -> Vec<u8> {
     for &item in content.iter() {
         output = append_bit_vec(output, &dictionnary[item as usize]);
     }
+
 
     serialize_bit_vec(&output)
 }
@@ -131,22 +133,6 @@ fn pop_front_bit_vec(mut to_pop: BitVec) -> BitVec {
     return to_pop;
 }
 
-fn build_tree(tree_seed: Vec<(u8, BitVec)>) -> Node {
-    if tree_seed.len() == 1 {
-        return Node::Leaf(tree_seed[0].0);
-    } else {
-        let mut left = Vec::new();
-        let mut right = Vec::new();
-
-        for item in tree_seed {
-            [&mut left, &mut right][item.1[0] as usize].push((item.0, pop_front_bit_vec(item.1)));
-        }
-
-        return Node::Branch(Box::new(build_tree(left)), Box::new(build_tree(right)));
-    }
-
-
-}
 
 pub fn decompression(content: Vec<u8>) -> Vec<u8> {
     // let mut dictionnary: Vec<(u8, BitVec)> = Vec::new();
