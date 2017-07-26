@@ -9,7 +9,7 @@ use bitvec_util::*;
 use std::collections::BTreeMap;
 
 
-pub fn compression(content: Vec<u8>) -> Vec<u8> {
+pub fn compression(content: &Vec<u8>) -> Vec<u8> {
     let mut statistique: BTreeMap<u8, u64> = BTreeMap::new();
     for item in content.iter() {
         if statistique.contains_key(item){
@@ -21,7 +21,7 @@ pub fn compression(content: Vec<u8>) -> Vec<u8> {
 
     let tree = Node::from_statistics(&statistique);
 
-    let mut output = tree.encode_tree_u8();
+    let mut output = tree.encode_tree();
 
     let dictionnary = tree.to_dictionnary(BitVec::new());
 
@@ -32,11 +32,11 @@ pub fn compression(content: Vec<u8>) -> Vec<u8> {
     serialize_bit_vec(&output)
 }
 
-pub fn decompression(content: Vec<u8>) -> Result<Vec<u8>, &'static str> {
-    let input = deserialize_bit_vec(&content);
+pub fn decompression(content: &Vec<u8>) -> Result<Vec<u8>, &'static str> {
+    let input = deserialize_bit_vec(content);
     let mut iter = input.iter();
 
-    let tree = Node::decode_tree_u8(&mut iter)?;
+    let tree = Node::decode_tree(&mut iter)?;
 
     let mut output: Vec<u8> = Vec::new();
     while let Some(code) = tree.scan(&mut iter)? {
@@ -44,4 +44,13 @@ pub fn decompression(content: Vec<u8>) -> Result<Vec<u8>, &'static str> {
     }
 
     return Ok(output);
+}
+
+
+#[test]
+fn identity_test() {
+    let input = vec![1, 2, 3, 4, 4, 4, 3, 4, 1, 2, 3, 4, 1, 2, 2, 3, 3, 4, 4, 3, 2, 1];
+    let coded = compression(&input);
+    let decoded = decompression(&coded).unwrap();
+    assert_eq!(input, decoded)
 }
