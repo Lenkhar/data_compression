@@ -10,7 +10,7 @@ use bitvec_util::*;
 use std::collections::BTreeMap;
 
 
-pub fn compression(content: Vec<u8>) -> Vec<u8> {
+pub fn compression(content: &Vec<u8>) -> Vec<u8> {
     let lz78_coded : Vec<(u64,u8)> = lz78_coding(content.iter());
 
     let (mut pointer_statistic, mut character_statistic) : (BTreeMap<u64,u64>,BTreeMap<u8,u64>) = (BTreeMap::new(), BTreeMap::new());
@@ -35,8 +35,8 @@ pub fn compression(content: Vec<u8>) -> Vec<u8> {
     serialize_bit_vec(&output)
 }
 
-pub fn decompression(content: Vec<u8>) -> Result<Vec<u8>, &'static str> {
-    let input = deserialize_bit_vec(&content);
+pub fn decompression(content: &Vec<u8>) -> Result<Vec<u8>, &'static str> {
+    let input = deserialize_bit_vec(content);
     let mut iter = input.iter();
 
     let (pointer_tree, character_tree) = (Node::decode_tree(&mut iter)?, Node::decode_tree(&mut iter)?);
@@ -50,4 +50,13 @@ pub fn decompression(content: Vec<u8>) -> Result<Vec<u8>, &'static str> {
     }
 
     return lz78_decoding(lz78_coded.iter());
+}
+
+
+#[test]
+fn identity_test() {
+    let input = vec![1, 2, 3, 4, 4, 4, 3, 4, 1, 2, 3, 4, 1, 2, 2, 3, 3, 4, 4, 3, 2, 1];
+    let coded = compression(&input);
+    let decoded = decompression(&coded).unwrap();
+    assert_eq!(input, decoded)
 }

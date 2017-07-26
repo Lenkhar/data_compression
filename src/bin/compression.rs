@@ -1,4 +1,3 @@
-
 extern crate data_compression;
 use std::fs::File;
 use std::io::prelude::*;
@@ -10,7 +9,7 @@ fn main() {
     let mut file = File::open(&file_name).unwrap();
     let mut contents = Vec::new();
     file.read_to_end(&mut contents).unwrap();
-    let output = data_compression::compression(contents);
+    let output = data_compression::compression(&contents);
 
     let mut file = File::create(file_name + ".lm").unwrap();
     file.write_all(&output).unwrap();

@@ -78,10 +78,56 @@ pub trait IntoBitVec {
     fn encode(&self) -> BitVec;
 }
 
+impl IntoBitVec for u8 {
+    fn encode(&self) -> BitVec {
+        BitVec::from_bytes(&[*self])
+    }
+}
+
+impl IntoBitVec for u64 {
+    fn encode(&self) -> BitVec {
+        let mut x = *self;
+        let mut xs = [0; 8];
+        for i in 0..8 {
+            xs[7 - i] = (x & 0xff) as u8;
+            x >>= 8;
+        }
+        BitVec::from_bytes(&xs)
+    }
+}
+
 pub trait FromBitVec
     where Self: std::marker::Sized
 {
     fn decode(&mut Iter) -> Result<Self, &'static str>;
+}
+
+impl FromBitVec for u8 {
+    fn decode(iter: &mut Iter) -> Result<u8, &'static str> {
+        let mut x = 0u8;
+        for _ in 0..8 {
+            match iter.next() {
+                Some(true) => { x <<= 1; x |= 1; }
+                Some(false) => { x <<= 1; }
+                None => { return Err("unexpected EOF while decoding u8"); }
+            }
+        }
+        Ok(x)
+    }
+}
+
+impl FromBitVec for u64 {
+    fn decode(iter: &mut Iter) -> Result<u64, &'static str> {
+        let mut x = 0u64;
+        for _ in 0..64 {
+            match iter.next() {
+                Some(true) => { x <<= 1; x |= 1; }
+                Some(false) => { x <<= 1; }
+                None => { return Err("unexpected EOF while decoding u64"); }
+            }
+        }
+        Ok(x)
+    }
 }
 
 impl<T: IntoBitVec + FromBitVec + Copy> Node<T> {
@@ -113,48 +159,6 @@ impl<T: IntoBitVec + FromBitVec + Copy> Node<T> {
             }
         } else {
             Err("unexpected EOF")
-        }
-    }
-}
-
-impl Node<u8> {
-    pub fn encode_tree_u8(&self) -> BitVec {
-        match *self {
-            Node::Leaf(character) => {
-                let mut output = BitVec::new();
-                output.push(true);
-                append_bit_vec(output, &BitVec::from_bytes(&[character]))
-            }
-            Node::Branch(ref left_node, ref right_node) => {
-                let mut output = BitVec::new();
-                output.push(false);
-                append_bit_vec(append_bit_vec(output, &left_node.encode_tree_u8()),
-                               &right_node.encode_tree_u8())
-            }
-        }
-    }
-
-    pub fn decode_tree_u8(iter: &mut Iter) -> Result<Node<u8>, &'static str> {
-        match iter.next() {
-            Some(val) => {
-                if val {
-                    let mut character: u8 = 0;
-                    for _ in 0..8 {
-                        character <<= 1;
-                        let bit = if let Some(bit) = iter.next() {
-                            bit
-                        } else {
-                            return Err("incomplete character");
-                        };
-                        character |= bit as u8;
-                    }
-                    Ok(Node::Leaf(character))
-                } else {
-                    Ok(Node::Branch(Box::new(Self::decode_tree_u8(iter)?),
-                                    Box::new(Self::decode_tree_u8(iter)?)))
-                }
-            }
-            None => Err("unexpected EOF"),
         }
     }
 }
