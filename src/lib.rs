@@ -5,6 +5,7 @@ use bit_vec::BitVec;
 mod huffman;
 use huffman::*;
 mod bitvec_util;
+mod lz_78;
 use bitvec_util::*;
 
 
