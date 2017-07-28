@@ -6,10 +6,88 @@ use huffman::*;
 mod bitvec_util;
 mod lz_77;
 mod lz_78;
+use lz_77::{lz77_coding, lz77_decoding};
 use lz_78::{lz78_coding, lz78_decoding};
 use bitvec_util::*;
 use std::collections::BTreeMap;
 
+
+pub fn compression_lz77(content: &Vec<u8>) -> Vec<u8> {
+    if content.is_empty() {
+        return content.clone();
+    }
+    let lz77_coded: Vec<(u16, u8, u8)> = lz77_coding(content.iter()).collect();
+
+    let lz77_coded: Vec<(u16, u8)> = lz77_coded.iter()
+        .map(|&(ptr, len, byte)| {
+            assert!(ptr < 4096);
+            assert!(len < 32);
+            (ptr << 4 | len as u16, byte)
+        })
+        .collect();
+
+    let mut stat = BTreeMap::new();
+
+    for &(ptr_len, byte) in lz77_coded.iter() {
+        *stat.entry(byte).or_insert(0) += 1;
+        *stat.entry((ptr_len & 0xff) as u8).or_insert(0) += 1;
+        *stat.entry(((ptr_len >> 8) & 0xff) as u8).or_insert(0) += 1;
+    }
+
+    let tree = Node::from_statistics(&stat);
+
+    let mut output = BitVec::new();
+    output = append_bit_vec(output, &tree.encode_tree());
+
+    let dico = tree.to_dictionnary(BitVec::new());
+
+    for &(ptr_len, byte) in lz77_coded.iter() {
+        let x1 = (ptr_len & 0xff) as u8;
+        let x2 = ((ptr_len >> 8) & 0xff) as u8;
+        output = append_bit_vec(output, &dico[&x1]);
+        output = append_bit_vec(output, &dico[&x2]);
+        output = append_bit_vec(output, &dico[&byte]);
+    }
+
+    serialize_bit_vec(&output)
+}
+
+pub fn decompression_lz77(content: &Vec<u8>) -> Result<Vec<u8>, &'static str> {
+    if content.is_empty() {
+        return Ok(content.clone());
+    }
+    let input = deserialize_bit_vec(content);
+    let mut iter = input.iter();
+
+    let tree: Node<u8> = Node::decode_tree(&mut iter)?;
+
+    let mut lz77_coded: Vec<(u16, u8, u8)> = Vec::new();
+
+    loop {
+        let x1 = match tree.scan(&mut iter) {
+            Ok(Some(x1)) => x1,
+            Ok(None) => {
+                break;
+            }
+            Err(err) => return Err(err),
+        };
+        let x2 = match tree.scan(&mut iter) {
+            Ok(Some(x2)) => x2,
+            Ok(None) => return Err("Problem"),
+            Err(err) => return Err(err),
+        };
+        let byte = match tree.scan(&mut iter) {
+            Ok(Some(byte)) => byte,
+            Ok(None) => return Err("Problem"),
+            Err(err) => return Err(err),
+        };
+        let ptr_len = ((x2 as u16) << 8) | x1 as u16;
+        let triplet = (ptr_len >> 4, (ptr_len & 0b1111) as u8, byte);
+        lz77_coded.push(triplet);
+    }
+
+    Ok(lz77_decoding(lz77_coded.iter()).collect())
+}
 
 pub fn compression(content: &Vec<u8>) -> Vec<u8> {
     if content.is_empty() {
@@ -32,8 +110,12 @@ pub fn compression(content: &Vec<u8>) -> Vec<u8> {
     let mut output = BitVec::new();
     let pointer_code = pointer_tree.encode_tree();
     let character_code = character_tree.encode_tree();
-    println!("Pointer tree size {} ({} pointers)", pointer_code.len(), pointer_statistic.len());
-    println!("Character tree size {} ({} characters)", character_code.len(), character_statistic.len());
+    println!("Pointer tree size {} ({} pointers)",
+             pointer_code.len(),
+             pointer_statistic.len());
+    println!("Character tree size {} ({} characters)",
+             character_code.len(),
+             character_statistic.len());
     output = append_bit_vec(output, &pointer_code);
     output = append_bit_vec(output, &character_code);
 

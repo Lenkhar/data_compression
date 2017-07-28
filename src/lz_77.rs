@@ -22,7 +22,7 @@ impl<T> Cycle<T>
     }
 
     fn modulo(&self, mut i: isize) -> usize {
-        i = i % self.data.len() as isize;
+        i = (self.begin as isize + i) % self.data.len() as isize;
         if i < 0 {
             i += self.data.len() as isize;
         }
@@ -35,7 +35,7 @@ impl<T> Index<isize> for Cycle<T>
 {
     type Output = T;
     fn index(&self, index: isize) -> &T {
-        &self.data[self.modulo(self.begin as isize + index)]
+        &self.data[self.modulo(index)]
     }
 }
 
@@ -83,6 +83,7 @@ impl<'a, I> Iterator for LZ77CodingIter<'a, I>
         // 0
 
         let begin_view = -(self.to_code as isize);
+        let pos_begin = self.window.modulo(begin_view);
         let mut len = 0;
         let mut ptr = None;
 
@@ -91,15 +92,18 @@ impl<'a, I> Iterator for LZ77CodingIter<'a, I>
                 break 'b;
             }
             for i in 0..len {
-                if self.window.modulo(j as isize + i) == self.window.modulo(begin_view) {
+                let pos = self.window.modulo(j as isize + i);
+                if pos == pos_begin {
                     break 'b;
                 }
-                if self.window[j as isize + i] != self.window[begin_view + i] {
+                if self.window.data[pos] != self.window[begin_view + i] {
                     continue 'b;
                 }
             }
-            while self.window.modulo(j as isize + len) != self.window.modulo(begin_view) &&
-                  self.window[j as isize + len] == self.window[begin_view + len] {
+            while {
+                let pos = self.window.modulo(j as isize + len);
+                pos != pos_begin && self.window.data[pos] == self.window[begin_view + len]
+            } {
                 ptr = Some((WINDOW_SIZE - j - self.to_code) as u16);
                 len += 1;
                 if len + 1 == self.to_code as isize {
@@ -193,8 +197,20 @@ fn lz_77_testing() {
     test(vec![1, 2, 3, 1, 1, 2, 3, 1]);
     test(vec![1, 2, 3, 1, 1, 2, 3, 1, 1, 2, 3, 1, 1, 2, 3, 1, 2, 2, 1, 2, 3, 4, 5, 1, 2, 3, 4, 3,
               2, 1, 5, 4, 3, 4]);
+    test(vec![91, 114, 111, 111, 116, 93, 10, 110, 97, 109, 101, 32, 61, 32, 34, 100, 97, 116,
+              97, 95, 99, 111, 109, 112, 114, 101, 115, 115, 105, 111, 110, 34, 10, 118, 101,
+              114, 115, 105, 111, 110, 32, 61, 32, 34, 48, 46, 49, 46, 48, 34, 10, 100, 101, 112,
+              101, 110, 100, 101, 110, 99, 105, 101, 115, 32, 61, 32, 91, 10, 32, 34, 98, 105,
+              110, 97, 114, 121, 95, 104, 101, 97, 112, 95, 99, 111, 109, 112, 97, 114, 101, 32,
+              48, 46, 49, 46, 48, 32, 40, 103, 105, 116, 43, 104, 116, 116, 112, 115, 58, 47, 47,
+              103, 105, 116, 104, 117, 98, 46, 99, 111, 109, 47, 97, 110, 116, 105, 103, 111,
+              108, 47, 98, 105, 110, 97, 114, 121, 95, 104, 101, 97, 112, 95, 99, 111, 109, 112,
+              97, 114, 101, 41, 34, 44, 10, 32, 34, 98, 105, 116, 45, 118, 101, 99, 32, 48, 46,
+              52, 46, 52, 32, 40, 114, 101, 103, 105, 115, 116, 114, 121, 43, 104, 116, 116, 112,
+              115, 58, 47, 47, 103, 105, 116, 104, 117, 98, 46, 99, 111, 109, 47, 114, 117, 115,
+              116, 45, 108, 97, 110]);
     let mut xs = Vec::new();
-    for i in 0..1024*128 {
+    for i in 0..1024 * 128 {
         xs.push(((123 * i + 7) % 5) as u8);
     }
     // test(xs);
