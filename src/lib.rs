@@ -4,6 +4,7 @@ use bit_vec::BitVec;
 mod huffman;
 use huffman::*;
 mod bitvec_util;
+mod lz_77;
 mod lz_78;
 use lz_78::{lz78_coding, lz78_decoding};
 use bitvec_util::*;
