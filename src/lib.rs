@@ -12,14 +12,11 @@ use bitvec_util::*;
 use std::collections::BTreeMap;
 
 
-pub fn compression_lz77(content: &Vec<u8>) -> Vec<u8> {
-    if content.is_empty() {
-        return content.clone();
-    }
-    let lz77_coded: Vec<(u16, u8, u8)> = lz77_coding(content.iter()).collect();
-
-    let lz77_coded: Vec<(u16, u8)> = lz77_coded.iter()
-        .map(|&(ptr, len, byte)| {
+pub fn compression_lz77<I>(iter: I) -> Vec<u8>
+    where I: Iterator<Item = u8>
+{
+    let lz77_coded: Vec<(u16, u8)> = lz77_coding(iter)
+        .map(|(ptr, len, byte)| {
             assert!(ptr < 4096);
             assert!(len < 32);
             (ptr << 4 | len as u16, byte)

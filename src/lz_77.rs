@@ -51,21 +51,21 @@ impl<T> Debug for Cycle<T>
 const WINDOW_SIZE: usize = 0b1_0000_0000_0000;
 const VIEW_SIZE: usize = 0b1_0000;
 
-pub struct LZ77CodingIter<'a, I>
-    where I: Iterator<Item = &'a u8>
+pub struct LZ77CodingIter<I>
+    where I: Iterator<Item = u8>
 {
     iter: I,
     window: Cycle<u8>,
     to_code: usize,
 }
 
-impl<'a, I> Iterator for LZ77CodingIter<'a, I>
-    where I: Iterator<Item = &'a u8>
+impl<I> Iterator for LZ77CodingIter<I>
+    where I: Iterator<Item = u8>
 {
     type Item = (u16, u8, u8);
     fn next(&mut self) -> Option<(u16, u8, u8)> {
         while self.to_code < VIEW_SIZE {
-            if let Some(&byte) = self.iter.next() {
+            if let Some(byte) = self.iter.next() {
                 self.window.push(byte);
                 self.to_code += 1;
             } else {
@@ -122,8 +122,8 @@ impl<'a, I> Iterator for LZ77CodingIter<'a, I>
 }
 
 #[allow(dead_code)]
-pub fn lz77_coding<'a, I>(iter: I) -> LZ77CodingIter<'a, I>
-    where I: Iterator<Item = &'a u8>
+pub fn lz77_coding<I>(iter: I) -> LZ77CodingIter<I>
+    where I: Iterator<Item = u8>
 {
     LZ77CodingIter {
         iter: iter,
