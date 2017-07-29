@@ -48,8 +48,8 @@ impl<T> Debug for Cycle<T>
     }
 }
 
-const WINDOW_SIZE: usize = 0b1_0000_0000_0000;
-const VIEW_SIZE: usize = 0b1_0000;
+const WINDOW_SIZE: usize = 4096;
+const VIEW_SIZE: usize = 32;
 
 pub struct LZ77CodingIter<I>
     where I: Iterator<Item = u8>
@@ -80,30 +80,34 @@ impl<I> Iterator for LZ77CodingIter<I>
         // -----WINDOW-----|VIEW
         // 0                 ^-- size to_code
 
-        let mut len = 0;
-        let mut ptr = None;
+        let mut len: usize = 0;
+        let mut ptr: Option<u16> = None;
 
-        'b: for j in 0..WINDOW_SIZE - self.to_code {
-            if j + len as usize == WINDOW_SIZE - self.to_code {
-                break 'b;
-            }
-            for i in 0..len {
-                if self.window[j as isize + i] != self.window[i - self.to_code as isize] {
-                    continue 'b;
-                }
-            }
-            while (j + len as usize) < WINDOW_SIZE - self.to_code &&
-                  self.window[j as isize + len] == self.window[len - self.to_code as isize] {
-                ptr = Some((WINDOW_SIZE - j - self.to_code) as u16);
-                len += 1;
-                if len + 1 == self.to_code as isize {
+        if self.to_code > 1 {
+            'b: for j in 0..WINDOW_SIZE - self.to_code {
+                if j + len == WINDOW_SIZE - self.to_code {
                     break 'b;
+                }
+                for i in 0..len {
+                    if self.window[j as isize + i as isize] !=
+                       self.window[i as isize - self.to_code as isize] {
+                        continue 'b;
+                    }
+                }
+                while j + len < WINDOW_SIZE - self.to_code &&
+                      self.window[j as isize + len as isize] ==
+                      self.window[len as isize - self.to_code as isize] {
+                    ptr = Some((WINDOW_SIZE - j - self.to_code) as u16);
+                    len += 1;
+                    if len + 1 == self.to_code {
+                        break 'b;
+                    }
                 }
             }
         }
 
-        let k = self.window[len - self.to_code as isize];
-        self.to_code -= len as usize + 1;
+        let k = self.window[len as isize - self.to_code as isize];
+        self.to_code -= len + 1;
 
         Some((ptr.unwrap_or(0), len as u8, k))
     }
