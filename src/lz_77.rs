@@ -73,37 +73,27 @@ impl<I> Iterator for LZ77CodingIter<I>
             }
         }
 
-        // println!("{:?} to_code = {}", self.window, self.to_code);
-
         if self.to_code == 0 {
             return None;
         }
 
         // -----WINDOW-----|VIEW
-        // 0
+        // 0                 ^-- size to_code
 
-        let begin_view = -(self.to_code as isize);
-        let pos_begin = self.window.modulo(begin_view);
         let mut len = 0;
         let mut ptr = None;
 
         'b: for j in 0..WINDOW_SIZE - self.to_code {
-            if len + 1 == self.to_code as isize {
+            if j + len as usize == WINDOW_SIZE - self.to_code {
                 break 'b;
             }
             for i in 0..len {
-                let pos = self.window.modulo(j as isize + i);
-                if pos == pos_begin {
-                    break 'b;
-                }
-                if self.window.data[pos] != self.window[begin_view + i] {
+                if self.window[j as isize + i] != self.window[i - self.to_code as isize] {
                     continue 'b;
                 }
             }
-            while {
-                let pos = self.window.modulo(j as isize + len);
-                pos != pos_begin && self.window.data[pos] == self.window[begin_view + len]
-            } {
+            while (j + len as usize) < WINDOW_SIZE - self.to_code &&
+                  self.window[j as isize + len] == self.window[len - self.to_code as isize] {
                 ptr = Some((WINDOW_SIZE - j - self.to_code) as u16);
                 len += 1;
                 if len + 1 == self.to_code as isize {
@@ -112,10 +102,8 @@ impl<I> Iterator for LZ77CodingIter<I>
             }
         }
 
-        let k = self.window[begin_view + len];
+        let k = self.window[len - self.to_code as isize];
         self.to_code -= len as usize + 1;
-
-        // println!("=> (ptr = {:?}, len = {}, k = {})", ptr, len, k);
 
         Some((ptr.unwrap_or(0), len as u8, k))
     }
@@ -183,12 +171,12 @@ pub fn lz77_decoding<'a, I>(iter: I) -> LZ77DecodingIter<'a, I>
 #[test]
 fn lz_77_testing() {
     fn test(input: Vec<u8>) {
-        println!("Input {:?}", input);
-        let coded: Vec<_> = lz77_coding(input.iter()).collect();
-        println!("Coded {:?}", coded);
+        // println!("Input {:?}", input);
+        let coded: Vec<_> = lz77_coding(input.iter().cloned()).collect();
+        // println!("Coded {:?}", coded);
         let decoded: Vec<u8> = lz77_decoding(coded.iter()).collect();
 
-        println!("Decoded {:?}", decoded);
+        // println!("Decoded {:?}", decoded);
         assert_eq!(input, decoded);
     }
     test(vec![]);
@@ -213,5 +201,5 @@ fn lz_77_testing() {
     for i in 0..1024 * 128 {
         xs.push(((123 * i + 7) % 5) as u8);
     }
-    // test(xs);
+    test(xs);
 }
