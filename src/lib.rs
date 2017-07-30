@@ -74,7 +74,7 @@ pub fn compression_lz77<I>(iter: I) -> Vec<u8>
     let lz77_coded: Vec<(u16, u8)> = lz77_coding(iter)
         .map(|(ptr, len, byte)| {
             assert!(ptr < 4096, "ptr = {}, len = {}", ptr, len);
-            assert!(len < 32, "ptr = {}, len = {}", ptr, len);
+            assert!(len < 16, "ptr = {}, len = {}", ptr, len);
             (ptr << 4 | len as u16, byte)
         })
         .collect();

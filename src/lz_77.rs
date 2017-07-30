@@ -1,6 +1,6 @@
 use std::ops::Index;
 use std::fmt::{Debug, Formatter, Error};
-// use std::collections::VecDeque;
+use std::collections::VecDeque;
 
 struct Cycle<T> {
     data: Vec<T>,
@@ -50,15 +50,15 @@ impl<T> Debug for Cycle<T>
 }
 
 const WINDOW_SIZE: usize = 4096;
-const VIEW_SIZE: usize = 32;
+const VIEW_SIZE: usize = 16;
 
 pub struct LZ77CodingIter<I>
     where I: Iterator<Item = u8>
 {
     iter: I,
     window: Cycle<u8>,
-    // positions: Vec<VecDeque<usize>>,
-    // readed: usize,
+    positions: Vec<VecDeque<usize>>,
+    readed: usize,
     to_code: usize,
 }
 
@@ -69,11 +69,11 @@ impl<I> Iterator for LZ77CodingIter<I>
     fn next(&mut self) -> Option<(u16, u8, u8)> {
         while self.to_code < VIEW_SIZE {
             if let Some(byte) = self.iter.next() {
-                // self.positions[self.window[0] as usize].pop_front();
+                self.positions[self.window[0] as usize].pop_front();
                 self.window.push(byte);
-                // self.positions[byte as usize].push_back(WINDOW_SIZE + self.readed);
+                self.positions[byte as usize].push_back(WINDOW_SIZE + self.readed);
                 self.to_code += 1;
-                // self.readed += 1;
+                self.readed += 1;
             } else {
                 break;
             }
@@ -90,10 +90,10 @@ impl<I> Iterator for LZ77CodingIter<I>
         let mut ptr: Option<u16> = None;
 
         if self.to_code > 1 {
-            // 'b: for j in self.positions[self.window[-(self.to_code as isize)] as usize].iter() {
-            //     let j = j - self.readed;
+            'b: for j in self.positions[self.window[-(self.to_code as isize)] as usize].iter() {
+                let j = j - self.readed;
 
-            'b: for j in 0..WINDOW_SIZE - self.to_code {
+            // 'b: for j in 0..WINDOW_SIZE - self.to_code {
                 if j + len == WINDOW_SIZE - self.to_code {
                     break 'b;
                 }
@@ -126,13 +126,13 @@ impl<I> Iterator for LZ77CodingIter<I>
 pub fn lz77_coding<I>(iter: I) -> LZ77CodingIter<I>
     where I: Iterator<Item = u8>
 {
-    // let mut positions = vec![VecDeque::new(); 256];
-    // positions[0] = (0..WINDOW_SIZE).collect();
+    let mut positions = vec![VecDeque::new(); 256];
+    positions[0] = (0..WINDOW_SIZE).collect();
     LZ77CodingIter {
         iter: iter,
         window: Cycle::new(WINDOW_SIZE),
-        // positions: positions,
-        // readed: 0,
+        positions: positions,
+        readed: 0,
         to_code: 0,
     }
 }
@@ -214,11 +214,21 @@ fn lz_77_testing() {
               52, 46, 52, 32, 40, 114, 101, 103, 105, 115, 116, 114, 121, 43, 104, 116, 116, 112,
               115, 58, 47, 47, 103, 105, 116, 104, 117, 98, 46, 99, 111, 109, 47, 114, 117, 115,
               116, 45, 108, 97, 110]);
-    for j in 0..128 {
+    for j in 0..12 {
         let mut xs = Vec::new();
-        for i in 0..4096 * 3 + j {
-            xs.push(((123 * i + 7) % 5) as u8);
+        let mut x: u32 = 0;
+        for _ in 0..4096 * 3 + j {
+            x = x.wrapping_mul(22695477).wrapping_add(1);
+            xs.push((x % 5) as u8);
         }
         test(xs);
     }
+    test(r#"[package]
+name = "data_compression"
+version = "0.1.0"
+authors = ["lcolbois"]
+
+[dependencies]
+binary_heap_compare = { git = "https://github.com/antigol/binary_heap_compare" }
+bit-vec = "0.4.4""#.as_bytes().to_vec());
 }
