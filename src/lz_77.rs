@@ -1,5 +1,6 @@
 use std::ops::Index;
 use std::fmt::{Debug, Formatter, Error};
+// use std::collections::VecDeque;
 
 struct Cycle<T> {
     data: Vec<T>,
@@ -56,6 +57,8 @@ pub struct LZ77CodingIter<I>
 {
     iter: I,
     window: Cycle<u8>,
+    // positions: Vec<VecDeque<usize>>,
+    // readed: usize,
     to_code: usize,
 }
 
@@ -66,8 +69,11 @@ impl<I> Iterator for LZ77CodingIter<I>
     fn next(&mut self) -> Option<(u16, u8, u8)> {
         while self.to_code < VIEW_SIZE {
             if let Some(byte) = self.iter.next() {
+                // self.positions[self.window[0] as usize].pop_front();
                 self.window.push(byte);
+                // self.positions[byte as usize].push_back(WINDOW_SIZE + self.readed);
                 self.to_code += 1;
+                // self.readed += 1;
             } else {
                 break;
             }
@@ -84,6 +90,9 @@ impl<I> Iterator for LZ77CodingIter<I>
         let mut ptr: Option<u16> = None;
 
         if self.to_code > 1 {
+            // 'b: for j in self.positions[self.window[-(self.to_code as isize)] as usize].iter() {
+            //     let j = j - self.readed;
+
             'b: for j in 0..WINDOW_SIZE - self.to_code {
                 if j + len == WINDOW_SIZE - self.to_code {
                     break 'b;
@@ -117,9 +126,13 @@ impl<I> Iterator for LZ77CodingIter<I>
 pub fn lz77_coding<I>(iter: I) -> LZ77CodingIter<I>
     where I: Iterator<Item = u8>
 {
+    // let mut positions = vec![VecDeque::new(); 256];
+    // positions[0] = (0..WINDOW_SIZE).collect();
     LZ77CodingIter {
         iter: iter,
         window: Cycle::new(WINDOW_SIZE),
+        // positions: positions,
+        // readed: 0,
         to_code: 0,
     }
 }
@@ -201,9 +214,11 @@ fn lz_77_testing() {
               52, 46, 52, 32, 40, 114, 101, 103, 105, 115, 116, 114, 121, 43, 104, 116, 116, 112,
               115, 58, 47, 47, 103, 105, 116, 104, 117, 98, 46, 99, 111, 109, 47, 114, 117, 115,
               116, 45, 108, 97, 110]);
-    let mut xs = Vec::new();
-    for i in 0..1024 * 128 {
-        xs.push(((123 * i + 7) % 5) as u8);
+    for j in 0..128 {
+        let mut xs = Vec::new();
+        for i in 0..4096 * 3 + j {
+            xs.push(((123 * i + 7) % 5) as u8);
+        }
+        test(xs);
     }
-    test(xs);
 }

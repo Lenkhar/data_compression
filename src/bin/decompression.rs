@@ -9,8 +9,10 @@ fn main() {
     let mut file = File::open(&file_name).unwrap();
     let mut contents = Vec::new();
     file.read_to_end(&mut contents).unwrap();
-    let output = data_compression::decompression_lz77(&contents).unwrap();
+
+    // let contents = data_compression::decompression_huffman(&contents).unwrap();
+    let contents = data_compression::decompression_lz77(&contents).unwrap();
 
     let mut file = File::create(file_name.split_at(file_name.len() - 3).0).unwrap();
-    file.write_all(&output).unwrap();
+    file.write_all(&contents).unwrap();
 }

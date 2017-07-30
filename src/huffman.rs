@@ -60,11 +60,10 @@ impl<T: Ord + Copy> Node<T> {
             &Node::Leaf(character) => Ok(Some(character)),
             &Node::Branch(ref node_0, ref node_1) => {
                 if let Some(bit) = iter.next() {
-                    let result = if bit { node_1 } else { node_0 }.scan(iter);
+                    let result = if bit { node_1 } else { node_0 }.scan(iter)?;
                     match result {
-                        Ok(Some(character)) => Ok(Some(character)),
-                        Ok(None) => Err("unexpected EOF"),
-                        Err(err) => Err(err),
+                        Some(character) => Ok(Some(character)),
+                        None => Err("unexpected EOF"),
                     }
                 } else {
                     Ok(None)

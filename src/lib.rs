@@ -10,7 +10,63 @@ use lz_77::{lz77_coding, lz77_decoding};
 use lz_78::{lz78_coding, lz78_decoding};
 use bitvec_util::*;
 use std::collections::BTreeMap;
+use std::collections::btree_map::Entry;
 
+pub fn compression_huffman(content: &Vec<u8>) -> Vec<u8> {
+    if content.is_empty() {
+        return vec![];
+    }
+    let mut stat = BTreeMap::new();
+
+    for &byte in content.iter() {
+        *stat.entry(byte).or_insert(0) += 1;
+    }
+    if stat.len() == 1 {
+        for byte in 0..256 {
+            if let Entry::Vacant(entry) = stat.entry(byte as u8) {
+                entry.insert(1);
+                break;
+            }
+        }
+    }
+
+    let tree = Node::from_statistics(&stat);
+
+    let mut output = BitVec::new();
+    output = append_bit_vec(output, &tree.encode_tree());
+
+    let dico = tree.to_dictionnary(BitVec::new());
+
+    for &byte in content.iter() {
+        output = append_bit_vec(output, &dico[&byte]);
+    }
+
+    serialize_bit_vec(&output)
+}
+
+pub fn decompression_huffman(content: &Vec<u8>) -> Result<Vec<u8>, &'static str> {
+    if content.is_empty() {
+        return Ok(vec![]);
+    }
+    let input = deserialize_bit_vec(content);
+    let mut iter = input.iter();
+
+    let tree: Node<u8> = Node::decode_tree(&mut iter)?;
+
+    let mut output: Vec<u8> = Vec::new();
+
+    'b: loop {
+        let byte = match tree.scan(&mut iter) {
+            Ok(Some(byte)) => byte,
+            Ok(None) => {
+                break 'b;
+            }
+            Err(err) => return Err(err),
+        };
+        output.push(byte);
+    }
+    Ok(output)
+}
 
 pub fn compression_lz77<I>(iter: I) -> Vec<u8>
     where I: Iterator<Item = u8>
@@ -23,61 +79,31 @@ pub fn compression_lz77<I>(iter: I) -> Vec<u8>
         })
         .collect();
 
-    let mut stat = BTreeMap::new();
-
-    for &(ptr_len, byte) in lz77_coded.iter() {
-        *stat.entry(byte).or_insert(0) += 1;
-        *stat.entry((ptr_len & 0xff) as u8).or_insert(0) += 1;
-        *stat.entry(((ptr_len >> 8) & 0xff) as u8).or_insert(0) += 1;
-    }
-
-    let tree = Node::from_statistics(&stat);
-
-    let mut output = BitVec::new();
-    output = append_bit_vec(output, &tree.encode_tree());
-
-    let dico = tree.to_dictionnary(BitVec::new());
+    let mut output = Vec::new();
 
     for &(ptr_len, byte) in lz77_coded.iter() {
         let x1 = (ptr_len & 0xff) as u8;
         let x2 = ((ptr_len >> 8) & 0xff) as u8;
-        output = append_bit_vec(output, &dico[&x1]);
-        output = append_bit_vec(output, &dico[&x2]);
-        output = append_bit_vec(output, &dico[&byte]);
+        output.push(x1);
+        output.push(x2);
+        output.push(byte);
     }
 
-    serialize_bit_vec(&output)
+    output
 }
 
 pub fn decompression_lz77(content: &Vec<u8>) -> Result<Vec<u8>, &'static str> {
-    if content.is_empty() {
-        return Ok(content.clone());
-    }
-    let input = deserialize_bit_vec(content);
-    let mut iter = input.iter();
-
-    let tree: Node<u8> = Node::decode_tree(&mut iter)?;
+    let mut iter = content.iter();
 
     let mut lz77_coded: Vec<(u16, u8, u8)> = Vec::new();
 
     loop {
-        let x1 = match tree.scan(&mut iter) {
-            Ok(Some(x1)) => x1,
-            Ok(None) => {
-                break;
-            }
-            Err(err) => return Err(err),
+        let x1 = match iter.next() {
+            Some(&x1) => x1,
+            None => break
         };
-        let x2 = match tree.scan(&mut iter) {
-            Ok(Some(x2)) => x2,
-            Ok(None) => return Err("Problem"),
-            Err(err) => return Err(err),
-        };
-        let byte = match tree.scan(&mut iter) {
-            Ok(Some(byte)) => byte,
-            Ok(None) => return Err("Problem"),
-            Err(err) => return Err(err),
-        };
+        let x2 = *iter.next().ok_or("Unexpected EOF")?;
+        let byte = *iter.next().ok_or("Unexpected EOF")?;
         let ptr_len = ((x2 as u16) << 8) | x1 as u16;
         let triplet = (ptr_len >> 4, (ptr_len & 0b1111) as u8, byte);
         lz77_coded.push(triplet);
@@ -86,7 +112,7 @@ pub fn decompression_lz77(content: &Vec<u8>) -> Result<Vec<u8>, &'static str> {
     Ok(lz77_decoding(lz77_coded.iter()).collect())
 }
 
-pub fn compression(content: &Vec<u8>) -> Vec<u8> {
+pub fn compression_lz78(content: &Vec<u8>) -> Vec<u8> {
     if content.is_empty() {
         return content.clone();
     }
@@ -131,7 +157,7 @@ pub fn compression(content: &Vec<u8>) -> Vec<u8> {
     serialize_bit_vec(&output)
 }
 
-pub fn decompression(content: &Vec<u8>) -> Result<Vec<u8>, &'static str> {
+pub fn decompression_lz78(content: &Vec<u8>) -> Result<Vec<u8>, &'static str> {
     if content.is_empty() {
         return Ok(content.clone());
     }
@@ -168,9 +194,9 @@ pub fn decompression(content: &Vec<u8>) -> Result<Vec<u8>, &'static str> {
 fn identity_test() {
     let input = vec![1, 2, 3, 4, 4, 4, 3, 4, 1, 2, 3, 4, 1, 2, 2, 3, 3, 4, 4, 3, 2, 1];
     println!("Input {:?}", input);
-    let coded = compression(&input);
+    let coded = compression_huffman(&input);
     println!("Coded {:?}", coded);
-    let decoded = decompression(&coded).unwrap();
+    let decoded = decompression_huffman(&coded).unwrap();
     println!("Decoded {:?}", decoded);
     assert_eq!(input, decoded)
 }
@@ -179,9 +205,9 @@ fn identity_test() {
 fn identity2_test() {
     let input = vec![1, 2, 3, 4, 5, 6, 7, 8];
     println!("Input {:?}", input);
-    let coded = compression(&input);
+    let coded = compression_huffman(&input);
     println!("Coded {:?}", coded);
-    let decoded = decompression(&coded).unwrap();
+    let decoded = decompression_huffman(&coded).unwrap();
     println!("Decoded {:?}", decoded);
     assert_eq!(input, decoded)
 }
@@ -190,9 +216,9 @@ fn identity2_test() {
 fn identity3_test() {
     let input = vec![1];
     println!("Input {:?}", input);
-    let coded = compression(&input);
+    let coded = compression_huffman(&input);
     println!("Coded {:?}", coded);
-    let decoded = decompression(&coded).unwrap();
+    let decoded = decompression_huffman(&coded).unwrap();
     println!("Decoded {:?}", decoded);
     assert_eq!(input, decoded)
 }
@@ -201,9 +227,9 @@ fn identity3_test() {
 fn identity4_test() {
     let input = vec![];
     println!("Input {:?}", input);
-    let coded = compression(&input);
+    let coded = compression_huffman(&input);
     println!("Coded {:?}", coded);
-    let decoded = decompression(&coded).unwrap();
+    let decoded = decompression_huffman(&coded).unwrap();
     println!("Decoded {:?}", decoded);
     assert_eq!(input, decoded)
 }
@@ -212,9 +238,9 @@ fn identity4_test() {
 fn identity5_test() {
     let input = vec![1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
     println!("Input {:?}", input);
-    let coded = compression(&input);
+    let coded = compression_huffman(&input);
     println!("Coded {:?}", coded);
-    let decoded = decompression(&coded).unwrap();
+    let decoded = decompression_huffman(&coded).unwrap();
     println!("Decoded {:?}", decoded);
     assert_eq!(input, decoded)
 }
