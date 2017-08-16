@@ -12,7 +12,7 @@ use bitvec_util::*;
 use std::collections::BTreeMap;
 use std::collections::btree_map::Entry;
 
-pub fn compression_huffman(content: &Vec<u8>) -> Vec<u8> {
+pub fn compression_huffman(content: &[u8]) -> Vec<u8> {
     if content.is_empty() {
         return vec![];
     }
@@ -44,7 +44,7 @@ pub fn compression_huffman(content: &Vec<u8>) -> Vec<u8> {
     serialize_bit_vec(&output)
 }
 
-pub fn decompression_huffman(content: &Vec<u8>) -> Result<Vec<u8>, &'static str> {
+pub fn decompression_huffman(content: &[u8]) -> Result<Vec<u8>, &'static str> {
     if content.is_empty() {
         return Ok(vec![]);
     }
@@ -81,7 +81,7 @@ pub fn compression_lz77<I>(iter: I) -> Vec<u8>
 
     let mut output = Vec::new();
 
-    for &(ptr_len, byte) in lz77_coded.iter() {
+    for &(ptr_len, byte) in &lz77_coded {
         let x1 = (ptr_len & 0xff) as u8;
         let x2 = ((ptr_len >> 8) & 0xff) as u8;
         output.push(x1);
@@ -92,16 +92,17 @@ pub fn compression_lz77<I>(iter: I) -> Vec<u8>
     output
 }
 
-pub fn decompression_lz77(content: &Vec<u8>) -> Result<Vec<u8>, &'static str> {
+pub fn decompression_lz77(content: &[u8]) -> Result<Vec<u8>, &'static str> {
     let mut iter = content.iter();
 
     let mut lz77_coded: Vec<(u16, u8, u8)> = Vec::new();
 
-    loop {
-        let x1 = match iter.next() {
-            Some(&x1) => x1,
-            None => break
-        };
+    while let Some(&x1) = iter.next() {
+        // loop {
+        //     let x1 = match iter.next() {
+        //         Some(&x1) => x1,
+        //         None => break
+        //     };
         let x2 = *iter.next().ok_or("Unexpected EOF")?;
         let byte = *iter.next().ok_or("Unexpected EOF")?;
         let ptr_len = ((x2 as u16) << 8) | x1 as u16;
@@ -112,9 +113,9 @@ pub fn decompression_lz77(content: &Vec<u8>) -> Result<Vec<u8>, &'static str> {
     Ok(lz77_decoding(lz77_coded.iter()).collect())
 }
 
-pub fn compression_lz78(content: &Vec<u8>) -> Vec<u8> {
+pub fn compression_lz78(content: &[u8]) -> Vec<u8> {
     if content.is_empty() {
-        return content.clone();
+        return Vec::new();
     }
     let lz78_coded: Vec<(u64, u8)> = lz78_coding(content.iter());
 
@@ -122,7 +123,7 @@ pub fn compression_lz78(content: &Vec<u8>) -> Vec<u8> {
                                                            BTreeMap<u8, u64>) = (BTreeMap::new(),
                                                                                  BTreeMap::new());
 
-    for &(pointer, character) in lz78_coded.iter() {
+    for &(pointer, character) in &lz78_coded {
         *pointer_statistic.entry(pointer).or_insert(0) += 1;
         *character_statistic.entry(character).or_insert(0) += 1;
     }
@@ -148,7 +149,7 @@ pub fn compression_lz78(content: &Vec<u8>) -> Vec<u8> {
     //println!("Pointer dictionnary : {:?}", pointer_dictionnary);
     //println!("Character dictionnary : {:?}", character_dictionnary);
 
-    for &(pointer, character) in lz78_coded.iter() {
+    for &(pointer, character) in &lz78_coded {
         output = append_bit_vec(output, &pointer_dictionnary[&pointer]);
         output = append_bit_vec(output, &character_dictionnary[&character]);
     }
@@ -157,9 +158,9 @@ pub fn compression_lz78(content: &Vec<u8>) -> Vec<u8> {
     serialize_bit_vec(&output)
 }
 
-pub fn decompression_lz78(content: &Vec<u8>) -> Result<Vec<u8>, &'static str> {
+pub fn decompression_lz78(content: &[u8]) -> Result<Vec<u8>, &'static str> {
     if content.is_empty() {
-        return Ok(content.clone());
+        return Ok(Vec::new());
     }
     let input = deserialize_bit_vec(content);
     let mut iter = input.iter();
@@ -176,17 +177,15 @@ pub fn decompression_lz78(content: &Vec<u8>) -> Result<Vec<u8>, &'static str> {
         while let Some(pointer_code) = pointer_tree.scan(&mut iter)? {
             if let Some(character_code) = character_tree.scan(&mut iter)? {
                 lz78_coded.push((pointer_code, character_code));
+            } else if let Node::Leaf(_) = pointer_tree {
+                break;
             } else {
-                if let Node::Leaf(_) = pointer_tree {
-                    break;
-                } else {
-                    return Err("No character for given pointer");
-                }
+                return Err("No character for given pointer");
             }
         }
     }
 
-    return lz78_decoding(lz78_coded.iter());
+    lz78_decoding(lz78_coded.iter())
 }
 
 

@@ -90,7 +90,7 @@ impl<I> Iterator for LZ77CodingIter<I>
         let mut ptr: Option<u16> = None;
 
         if self.to_code > 1 {
-            'b: for j in self.positions[self.window[-(self.to_code as isize)] as usize].iter() {
+            'b: for j in &self.positions[self.window[-(self.to_code as isize)] as usize] {
                 let j = j - self.readed;
 
             // 'b: for j in 0..WINDOW_SIZE - self.to_code {

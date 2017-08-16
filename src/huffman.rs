@@ -32,14 +32,14 @@ impl<T: Ord + Copy> Node<T> {
     }
 
     #[allow(dead_code)]
-    pub fn to_dictionnary(self, current_word: BitVec) -> BTreeMap<T, BitVec> {
-        match self {
+    pub fn to_dictionnary(&self, current_word: BitVec) -> BTreeMap<T, BitVec> {
+        match *self {
             Node::Leaf(character) => {
                 let mut dictionnary = BTreeMap::new();
                 dictionnary.insert(character, current_word);
                 dictionnary
             }
-            Node::Branch(left_path, right_path) => {
+            Node::Branch(ref left_path, ref right_path) => {
                 let mut left_path_word = current_word.clone();
                 left_path_word.push(false);
                 let mut left_dictionnary = left_path.to_dictionnary(left_path_word);
@@ -56,9 +56,9 @@ impl<T: Ord + Copy> Node<T> {
 
     #[allow(dead_code)]
     pub fn scan(&self, iter: &mut Iter) -> Result<Option<T>, &'static str> {
-        match self {
-            &Node::Leaf(character) => Ok(Some(character)),
-            &Node::Branch(ref node_0, ref node_1) => {
+        match *self {
+            Node::Leaf(character) => Ok(Some(character)),
+            Node::Branch(ref node_0, ref node_1) => {
                 if let Some(bit) = iter.next() {
                     let result = if bit { node_1 } else { node_0 }.scan(iter)?;
                     match result {
@@ -132,13 +132,13 @@ impl FromBitVec for u64 {
 impl<T: IntoBitVec + FromBitVec + Copy> Node<T> {
     #[allow(dead_code)]
     pub fn encode_tree(&self) -> BitVec {
-        match self {
-            &Node::Leaf(ref character) => {
+        match *self {
+            Node::Leaf(ref character) => {
                 let mut output = BitVec::new();
                 output.push(true);
                 append_bit_vec(output, &character.encode())
             }
-            &Node::Branch(ref left_node, ref right_node) => {
+            Node::Branch(ref left_node, ref right_node) => {
                 let mut output = BitVec::new();
                 output.push(false);
                 append_bit_vec(append_bit_vec(output, &left_node.encode_tree()),

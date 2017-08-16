@@ -30,7 +30,7 @@ pub fn lz78_coding<'a, I>(iter: I) -> Vec<(u64, u8)>
         };
         output.push((pointer, last_char));
     }
-    return output;
+    output
 }
 
 #[allow(dead_code)]
@@ -54,7 +54,7 @@ pub fn lz78_decoding<'a, I>(iter: I) -> Result<Vec<u8>, &'static str>
 
 
     }
-    return Ok(output);
+    Ok(output)
 }
 
 #[test]

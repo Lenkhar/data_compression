@@ -9,7 +9,7 @@ pub fn serialize_bit_vec(x: &BitVec) -> Vec<u8> {
     let modulo = (x.len() % 8) as u8;
     let mut output = x.to_bytes();
     output.push(if modulo == 0 { 0 } else { 8 - modulo });
-    return output;
+    output
 }
 
 pub fn deserialize_bit_vec(x: &[u8]) -> BitVec {
@@ -26,5 +26,5 @@ pub fn pop_front_bit_vec(mut to_pop: BitVec) -> BitVec {
         to_pop.set(i, next);
     }
     to_pop.pop();
-    return to_pop;
+    to_pop
 }
